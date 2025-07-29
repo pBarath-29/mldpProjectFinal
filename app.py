@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import joblib
 import numpy as np
-import pydeck as pdk
 
 model = joblib.load("model_DecisionTree.pkl")
 historical_df = pd.read_csv("Clean_Dataset.csv")
@@ -361,57 +360,6 @@ with col1:
     with route_col2:
         available_destinations = [c for c in cities if c != source]
         destination = st.selectbox("🛬 To", available_destinations, key="destination")
-
-        # ⬇️ Inserted flight path map with pydeck
-import pydeck as pdk
-
-# Coordinates for major Indian cities
-city_coords = {
-    'Delhi': [77.1025, 28.7041],
-    'Mumbai': [72.8777, 19.0760],
-    'Bangalore': [77.5946, 12.9716],
-    'Kolkata': [88.3639, 22.5726],
-    'Hyderabad': [78.4867, 17.3850],
-    'Chennai': [80.2707, 13.0827]
-}
-
-# Check if selected cities have coordinates
-if source in city_coords and destination in city_coords:
-    src_coord = city_coords[source]
-    dst_coord = city_coords[destination]
-
-    st.markdown('''
-    <div class="form-card fade-in-up">
-        <div class="section-title">🗺️ Flight Path Map</div>
-    ''', unsafe_allow_html=True)
-
-    # Display the arc map between cities
-    st.pydeck_chart(pdk.Deck(
-        map_style='mapbox://styles/mapbox/light-v9',
-        initial_view_state=pdk.ViewState(
-            latitude=(src_coord[1] + dst_coord[1]) / 2,
-            longitude=(src_coord[0] + dst_coord[0]) / 2,
-            zoom=4,
-            pitch=0,
-        ),
-        layers=[
-            pdk.Layer(
-                "ArcLayer",
-                data=[{"from": src_coord, "to": dst_coord}],
-                get_source_position="from",
-                get_target_position="to",
-                get_source_color=[0, 128, 255],
-                get_target_color=[255, 0, 80],
-                auto_highlight=True,
-                width_scale=0.0001,
-                get_width=5,
-                pickable=True,
-            )
-        ],
-    ))
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
     
     cross_region = int(region_map[source] != region_map[destination])
     route_type = "Cross-region flight" if cross_region else "Same-region flight"
