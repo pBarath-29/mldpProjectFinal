@@ -61,37 +61,22 @@ departure_times = ['Afternoon', 'Early_Morning', 'Evening', 'Late_Night', 'Morni
 arrival_times = ['Afternoon', 'Early_Morning', 'Evening', 'Late_Night', 'Morning', 'Night']
 classes = ['Economy', 'Business']
 
+import streamlit as st
+
 def add_custom_css():
     st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-    
-    /* Root variables */
-    :root {
-        --primary-blue: #0066FF;
-        --secondary-blue: #4285F4;
-        --accent-orange: #FF6B35;
-        --success-green: #00C851;
-        --warning-yellow: #FFB300;
-        --text-dark: #1A1A1A;
-        --text-light: #6B7280;
-        --surface-white: rgba(255, 255, 255, 0.98);
-        --surface-card: rgba(255, 255, 255, 0.95);
-        --shadow-soft: 0 10px 40px rgba(0, 0, 0, 0.15);
-        --shadow-medium: 0 20px 60px rgba(0, 0, 0, 0.25);
-    }
-    
-    /* Background with much more opaque overlay for better readability */
+
     .stApp {
         background-image: url('https://cdn.dribbble.com/userupload/20522838/file/original-2783b0b7999528949d3a7e66870bfc72.gif');
         background-size: cover;
         background-position: center;
         background-repeat: no-repeat;
         background-attachment: fixed;
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        font-family: 'Inter', sans-serif;
     }
-    
-    /* Much stronger overlay for better text visibility */
+
     .stApp::before {
         content: '';
         position: fixed;
@@ -99,37 +84,32 @@ def add_custom_css():
         left: 0;
         width: 100%;
         height: 100%;
-        background: linear-gradient(135deg, 
-            rgba(255, 255, 255, 0.92) 0%, 
-            rgba(240, 248, 255, 0.95) 50%, 
-            rgba(230, 245, 255, 0.97) 100%);
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(240, 248, 255, 0.95), rgba(230, 245, 255, 0.97));
         z-index: -1;
         backdrop-filter: blur(3px);
     }
-    
-    /* Main container */
+
     .main .block-container {
         padding: 2rem 1rem;
         max-width: 1200px;
         margin: 0 auto;
     }
-    
-    /* App header with better contrast */
+
     .app-header {
         text-align: center;
         margin-bottom: 2rem;
         padding: 3rem 2rem;
-        background: var(--surface-white);
+        background: rgba(255, 255, 255, 0.98);
         backdrop-filter: blur(20px);
         border-radius: 24px;
         border: 2px solid rgba(0, 102, 255, 0.1);
-        box-shadow: var(--shadow-soft);
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
     }
-    
+
     .app-title {
         font-size: 3.5rem;
         font-weight: 800;
-        background: linear-gradient(135deg, var(--primary-blue), var(--secondary-blue));
+        background: linear-gradient(135deg, #0066FF, #4285F4);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
@@ -137,101 +117,76 @@ def add_custom_css():
         letter-spacing: -2px;
         text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
-    
+
     .app-subtitle {
         font-size: 1.3rem;
-        color: var(--text-dark);
+        color: #1A1A1A;
         font-weight: 600;
         margin-top: 1rem;
-        margin-bottom: 0;
         opacity: 0.8;
     }
-    
-    /* Card containers with much better visibility */
+
     .form-card {
-        background: var(--surface-card);
+        background: rgba(255, 255, 255, 0.95);
         backdrop-filter: blur(20px);
         border-radius: 20px;
         padding: 2.5rem;
         margin: 1.5rem 0;
         border: 2px solid rgba(0, 102, 255, 0.08);
-        box-shadow: var(--shadow-soft);
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
         transition: all 0.3s ease;
     }
-    
+
     .form-card:hover {
         transform: translateY(-3px);
-        box-shadow: var(--shadow-medium);
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
         border-color: rgba(0, 102, 255, 0.15);
     }
-    
-    /* Section titles with better contrast */
+
     .section-title {
         font-size: 1.4rem;
         font-weight: 800;
-        color: var(--text-dark);
-        margin: 0 0 2rem 0;
+        color: #1A1A1A;
+        margin-bottom: 2rem;
         display: flex;
         align-items: center;
         gap: 0.75rem;
         padding-bottom: 0.5rem;
-        border-bottom: 3px solid var(--primary-blue);
+        border-bottom: 3px solid #0066FF;
     }
-    
-    /* Form inputs with enhanced visibility */
-    .stSelectbox > div > div {
-        background: white !important;
-        border: 2px solid #D1D5DB !important;
-        border-radius: 12px !important;
-        transition: all 0.3s ease !important;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
-        font-weight: 500 !important;
-    }
-    
-    .stSelectbox > div > div:hover {
-        border-color: var(--primary-blue) !important;
-        transform: translateY(-1px) !important;
-        box-shadow: 0 6px 16px rgba(0, 102, 255, 0.15) !important;
-    }
-    
-    .stSelectbox label {
-        font-weight: 600 !important;
-        color: var(--text-dark) !important;
-        font-size: 1rem !important;
-    }
-    
+
+    .stSelectbox > div > div,
     .stNumberInput > div > div > input {
         background: white !important;
         border: 2px solid #D1D5DB !important;
         border-radius: 12px !important;
-        transition: all 0.3s ease !important;
-        font-weight: 600 !important;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
-        color: var(--text-dark) !important;
-    }
-    
-    .stNumberInput > div > div > input:focus {
-        border-color: var(--primary-blue) !important;
-        box-shadow: 0 0 0 4px rgba(0, 102, 255, 0.1) !important;
-    }
-    
-    .stNumberInput label {
         font-weight: 600 !important;
-        color: var(--text-dark) !important;
-        font-size: 1rem !important;
     }
-    
+
+    .stSelectbox > div > div:hover {
+        border-color: #0066FF !important;
+        transform: translateY(-1px) !important;
+        box-shadow: 0 6px 16px rgba(0, 102, 255, 0.15) !important;
+    }
+
+    .stSelectbox label,
+    .stNumberInput label,
     .stSlider label {
         font-weight: 600 !important;
-        color: var(--text-dark) !important;
+        color: #1A1A1A !important;
         font-size: 1rem !important;
     }
-    
-    .stSlider > div > div > div > div {
-        background: linear-gradient(90deg, var(--primary-blue), var(--secondary-blue)) !important;
+
+    .stNumberInput > div > div > input:focus {
+        border-color: #0066FF !important;
+        box-shadow: 0 0 0 4px rgba(0, 102, 255, 0.1) !important;
     }
-    
-    /* Info boxes with much better contrast */
+
+    .stSlider > div > div > div > div {
+        background: linear-gradient(90deg, #0066FF, #4285F4) !important;
+    }
+
     .info-box {
         background: linear-gradient(135deg, #E8F4FD, #D6EFFF) !important;
         border: 2px solid #64B5F6 !important;
@@ -246,10 +201,9 @@ def add_custom_css():
         box-shadow: 0 4px 12px rgba(13, 71, 161, 0.1) !important;
         font-size: 1rem !important;
     }
-    
-    /* Predict button with enhanced styling */
+
     .stButton > button {
-        background: linear-gradient(135deg, var(--primary-blue), var(--secondary-blue)) !important;
+        background: linear-gradient(135deg, #0066FF, #4285F4) !important;
         color: white !important;
         border: none !important;
         border-radius: 16px !important;
@@ -259,17 +213,15 @@ def add_custom_css():
         transition: all 0.3s ease !important;
         box-shadow: 0 8px 24px rgba(0, 102, 255, 0.3) !important;
         width: 100% !important;
-        letter-spacing: 0.5px !important;
         text-transform: uppercase !important;
     }
-    
+
     .stButton > button:hover {
         transform: translateY(-3px) !important;
         box-shadow: 0 12px 32px rgba(0, 102, 255, 0.4) !important;
         background: linear-gradient(135deg, #0052CC, #0066FF) !important;
     }
-    
-    /* Time reference with better styling */
+
     .time-reference {
         background: linear-gradient(135deg, #FFF9C4, #FFF59D) !important;
         border: 2px solid #FFD54F !important;
@@ -282,36 +234,34 @@ def add_custom_css():
         box-shadow: 0 4px 12px rgba(230, 81, 0, 0.1) !important;
         line-height: 1.6 !important;
     }
-    
-    /* Results card styling */
+
     .results-card {
-        background: var(--surface-card);
+        background: rgba(255, 255, 255, 0.95);
         backdrop-filter: blur(20px);
         border-radius: 20px;
         padding: 2.5rem;
         margin: 1.5rem 0;
         border: 2px solid rgba(0, 200, 81, 0.2);
-        box-shadow: var(--shadow-soft);
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
         animation: fadeInUp 0.6s ease-out;
     }
-    
+
     .price-display {
         text-align: center;
         padding: 2rem;
-        background: linear-gradient(135deg, var(--success-green), #00E676);
+        background: linear-gradient(135deg, #00C851, #00E676);
         border-radius: 16px;
         margin-bottom: 2rem;
         box-shadow: 0 8px 24px rgba(0, 200, 81, 0.3);
     }
-    
+
     .price-label {
         color: white;
         font-size: 1.1rem;
         font-weight: 600;
         margin-bottom: 0.5rem;
-        opacity: 0.95;
     }
-    
+
     .price-amount {
         color: white;
         font-size: 3rem;
@@ -319,81 +269,64 @@ def add_custom_css():
         margin: 0.5rem 0;
         text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
-    
+
     .tips-title {
         font-size: 1.4rem;
         font-weight: 800;
-        color: var(--text-dark);
-        margin: 0 0 1.5rem 0;
+        color: #1A1A1A;
+        margin-bottom: 1.5rem;
         display: flex;
         align-items: center;
         gap: 0.75rem;
         padding-bottom: 0.5rem;
-        border-bottom: 3px solid var(--accent-orange);
+        border-bottom: 3px solid #FF6B35;
     }
-    
+
     .tip-item {
         background: linear-gradient(135deg, #F8F9FA, #E9ECEF);
         padding: 1.2rem 1.5rem;
         margin: 1rem 0;
         border-radius: 12px;
-        border-left: 4px solid var(--accent-orange);
+        border-left: 4px solid #FF6B35;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
         font-weight: 600;
-        color: var(--text-dark);
+        color: #1A1A1A;
         transition: all 0.3s ease;
         font-size: 1rem;
     }
-    
+
     .tip-item:hover {
         transform: translateX(4px);
         box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
         background: linear-gradient(135deg, #E9ECEF, #DEE2E6);
     }
-    
-    /* Form sections with spacing */
+
     .form-section {
         margin-bottom: 2rem;
     }
-    
-    /* Column spacing */
+
     .stColumns > div {
         padding: 0 0.75rem;
     }
-    
-    /* Custom animations */
+
     @keyframes fadeInUp {
-        from {
-            opacity: 0;
-            transform: translateY(30px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
+        from { opacity: 0; transform: translateY(30px); }
+        to { opacity: 1; transform: translateY(0); }
     }
-    
+
     .fade-in-up {
         animation: fadeInUp 0.6s ease-out;
     }
-    
-    /* Responsive design */
+
     @media (max-width: 768px) {
-        .app-title {
-            font-size: 2.5rem;
-        }
-        
-        .form-card {
-            padding: 2rem;
-        }
-        
-        .price-amount {
-            font-size: 2.5rem;
-        }
+        .app-title { font-size: 2.5rem; }
+        .form-card { padding: 2rem; }
+        .price-amount { font-size: 2.5rem; }
     }
     </style>
     """, unsafe_allow_html=True)
 
+# Configure page settings
 st.set_page_config(
     page_title="Flight Price Predictor ✈️",
     page_icon="✈️",
@@ -401,7 +334,9 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+# Apply custom styles
 add_custom_css()
+
 
 st.markdown('''
 <div class="app-header fade-in-up">
