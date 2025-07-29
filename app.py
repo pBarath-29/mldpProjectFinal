@@ -361,12 +361,6 @@ def add_custom_css():
         padding: 0 0.75rem;
     }
     
-    /* Hide streamlit elements */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    .stDeployButton {display: none;}
-    
     /* Custom animations */
     @keyframes fadeInUp {
         from {
