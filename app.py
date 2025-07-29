@@ -2,11 +2,14 @@ import streamlit as st
 import pandas as pd
 import joblib
 import numpy as np
+import pydeck as pdk
 
+# Load the model and dataset
 model = joblib.load("model_DecisionTree.pkl")
 historical_df = pd.read_csv("Clean_Dataset.csv")
 historical_df.columns = historical_df.columns.str.strip()
 
+# Features expected by the model
 model_columns = [
     'stops', 'days_left', 'duration_mins', 'red_eye', 'is_peak_departure', 'cross_region',
     'days_duration_interaction', 'stops_per_hour',
@@ -21,6 +24,22 @@ model_columns = [
     'duration_category_Long', 'duration_category_Medium'
 ]
 
+# City coordinates for map (longitude, latitude)
+city_coords = {
+    "Delhi": [77.2090, 28.6139],
+    "Mumbai": [72.8777, 19.0760],
+    "Bangalore": [77.5946, 12.9716],
+    "Hyderabad": [78.4867, 17.3850],
+    "Kolkata": [88.3639, 22.5726],
+    "Chennai": [80.2707, 13.0827]
+}
+
+region_map = {
+    'Delhi': 'North', 'Mumbai': 'West', 'Bangalore': 'South',
+    'Kolkata': 'East', 'Hyderabad': 'South', 'Chennai': 'South'
+}
+
+# Helper functions
 def categorize_booking_type(days_left):
     if days_left <= 3:
         return 'Last_Minute'
@@ -38,11 +57,6 @@ def is_red_eye(departure_time, arrival_time):
 def categorize_duration(duration_mins):
     return 'Medium' if duration_mins < 180 else 'Long'
 
-region_map = {
-    'Delhi': 'North', 'Mumbai': 'West', 'Bangalore': 'South',
-    'Kolkata': 'East', 'Hyderabad': 'South', 'Chennai': 'South'
-}
-
 def get_price_tips(features):
     tips = []
     if features.get('class_Business', 0) == 1:
@@ -55,14 +69,89 @@ def get_price_tips(features):
         tips.append("🎉 Your flight details look optimized for the best price!")
     return tips
 
+def create_flight_map(source, destination):
+    """Create a map showing all Indian cities with highlighted flight route"""
+    # Create dataframe for all cities
+    all_cities_data = []
+    for city, coords in city_coords.items():
+        city_type = "source" if city == source else ("destination" if city == destination else "other")
+        all_cities_data.append({
+            "city": city,
+            "lat": coords[1],
+            "lon": coords[0],
+            "type": city_type
+        })
+    
+    all_cities_df = pd.DataFrame(all_cities_data)
+    
+    # India map center and zoom to show entire country
+    view_state = pdk.ViewState(
+        latitude=20.5937,  # Center of India
+        longitude=78.9629,
+        zoom=4.5,
+        pitch=0,
+        bearing=0
+    )
+    
+    # All cities layer with different colors based on type
+    cities_layer = pdk.Layer(
+        "ScatterplotLayer",
+        data=all_cities_df,
+        get_position=["lon", "lat"],
+        get_radius=lambda d: 80000 if d["type"] in ["source", "destination"] else 40000,
+        get_fill_color=lambda d: [255, 69, 0, 255] if d["type"] == "source" else 
+                                ([34, 139, 34, 255] if d["type"] == "destination" else 
+                                [128, 128, 128, 180]),
+        pickable=True,
+        stroked=True,
+        get_line_color=[255, 255, 255, 255],
+        get_line_width=2000,
+    )
+    
+    # Flight path layer (highlighted route)
+    source_coords = city_coords[source]
+    dest_coords = city_coords[destination]
+    path_layer = pdk.Layer(
+        "PathLayer",
+        data=[{"path": [[source_coords[0], source_coords[1]], [dest_coords[0], dest_coords[1]]]}],
+        get_path="path",
+        get_width=8,
+        get_color="[255, 20, 147, 200]",
+        width_min_pixels=3,
+    )
+    
+    # Text labels for all cities
+    text_layer = pdk.Layer(
+        "TextLayer",
+        data=all_cities_df,
+        get_position=["lon", "lat"],
+        get_text="city",
+        get_size=lambda d: 18 if d["type"] in ["source", "destination"] else 14,
+        get_color=lambda d: [255, 255, 255, 255] if d["type"] in ["source", "destination"] else [0, 0, 0, 255],
+        get_angle=0,
+        get_alignment_baseline="'bottom'",
+        font_weight="bold",
+        background=True,
+        get_background_color=lambda d: [0, 0, 0, 180] if d["type"] in ["source", "destination"] else [255, 255, 255, 180],
+    )
+    
+    deck = pdk.Deck(
+        layers=[path_layer, cities_layer, text_layer],
+        initial_view_state=view_state,
+        tooltip={"text": "{city}\nType: {type}"},
+        map_style="mapbox://styles/mapbox/light-v9"
+    )
+    
+    return deck
+
+# Static lists for inputs
 airlines = ['AirAsia', 'Air_India', 'GO_FIRST', 'Indigo', 'SpiceJet', 'Vistara']
 cities = ['Bangalore', 'Chennai', 'Delhi', 'Hyderabad', 'Kolkata', 'Mumbai']
 departure_times = ['Afternoon', 'Early_Morning', 'Evening', 'Late_Night', 'Morning', 'Night']
 arrival_times = ['Afternoon', 'Early_Morning', 'Evening', 'Late_Night', 'Morning', 'Night']
 classes = ['Economy', 'Business']
 
-import streamlit as st
-
+# Custom CSS for styling
 def add_custom_css():
     st.markdown("""
     <style>
@@ -76,25 +165,15 @@ def add_custom_css():
         background-attachment: fixed;
         font-family: 'Inter', sans-serif;
     }
-
     .stApp::before {
         content: '';
         position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(240, 248, 255, 0.95), rgba(230, 245, 255, 0.97));
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: linear-gradient(135deg, rgba(255,255,255,0.92), rgba(240,248,255,0.95), rgba(230,245,255,0.97));
         z-index: -1;
         backdrop-filter: blur(3px);
     }
-
-    .main .block-container {
-        padding: 2rem 1rem;
-        max-width: 1200px;
-        margin: 0 auto;
-    }
-
+    .main .block-container { padding: 2rem 1rem; max-width: 1200px; margin: 0 auto; }
     .app-header {
         text-align: center;
         margin-bottom: 2rem;
@@ -103,9 +182,8 @@ def add_custom_css():
         backdrop-filter: blur(20px);
         border-radius: 24px;
         border: 2px solid rgba(0, 102, 255, 0.1);
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+        box-shadow: 0 10px 40px rgba(0,0,0,0.15);
     }
-
     .app-title {
         font-size: 3.5rem;
         font-weight: 800;
@@ -115,9 +193,8 @@ def add_custom_css():
         background-clip: text;
         margin: 0;
         letter-spacing: -2px;
-        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        text-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
-
     .app-subtitle {
         font-size: 1.3rem;
         color: #1A1A1A;
@@ -125,7 +202,6 @@ def add_custom_css():
         margin-top: 1rem;
         opacity: 0.8;
     }
-
     .form-card {
         background: rgba(255, 255, 255, 0.95);
         backdrop-filter: blur(20px);
@@ -133,16 +209,14 @@ def add_custom_css():
         padding: 2.5rem;
         margin: 1.5rem 0;
         border: 2px solid rgba(0, 102, 255, 0.08);
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+        box-shadow: 0 10px 40px rgba(0,0,0,0.15);
         transition: all 0.3s ease;
     }
-
     .form-card:hover {
         transform: translateY(-3px);
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
-        border-color: rgba(0, 102, 255, 0.15);
+        box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+        border-color: rgba(0,102,255,0.15);
     }
-
     .section-title {
         font-size: 1.4rem;
         font-weight: 800;
@@ -154,87 +228,50 @@ def add_custom_css():
         padding-bottom: 0.5rem;
         border-bottom: 3px solid #0066FF;
     }
-
-    .stSelectbox > div > div,
-    .stNumberInput > div > div > input {
-        background: white !important;
-        border: 2px solid #D1D5DB !important;
-        border-radius: 12px !important;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
-        font-weight: 600 !important;
-    }
-
-    .stSelectbox > div > div:hover {
-        border-color: #0066FF !important;
-        transform: translateY(-1px) !important;
-        box-shadow: 0 6px 16px rgba(0, 102, 255, 0.15) !important;
-    }
-
-    .stSelectbox label,
-    .stNumberInput label,
-    .stSlider label {
-        font-weight: 600 !important;
-        color: #1A1A1A !important;
-        font-size: 1rem !important;
-    }
-
-    .stNumberInput > div > div > input:focus {
-        border-color: #0066FF !important;
-        box-shadow: 0 0 0 4px rgba(0, 102, 255, 0.1) !important;
-    }
-
-    .stSlider > div > div > div > div {
-        background: linear-gradient(90deg, #0066FF, #4285F4) !important;
-    }
-
     .info-box {
-        background: linear-gradient(135deg, #E8F4FD, #D6EFFF) !important;
-        border: 2px solid #64B5F6 !important;
-        border-radius: 12px !important;
-        padding: 1.2rem !important;
-        margin: 1.5rem 0 !important;
-        font-weight: 600 !important;
-        color: #0D47A1 !important;
-        display: flex !important;
-        align-items: center !important;
-        gap: 0.75rem !important;
-        box-shadow: 0 4px 12px rgba(13, 71, 161, 0.1) !important;
-        font-size: 1rem !important;
+        background: linear-gradient(135deg, #E8F4FD, #D6EFFF);
+        border: 2px solid #64B5F6;
+        border-radius: 12px;
+        padding: 1.2rem;
+        margin: 1.5rem 0;
+        font-weight: 600;
+        color: #0D47A1;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        box-shadow: 0 4px 12px rgba(13,71,161,0.1);
+        font-size: 1rem;
     }
-
     .stButton > button {
-        background: linear-gradient(135deg, #0066FF, #4285F4) !important;
-        color: white !important;
-        border: none !important;
-        border-radius: 16px !important;
-        padding: 1.2rem 2.5rem !important;
-        font-weight: 800 !important;
-        font-size: 1.2rem !important;
-        transition: all 0.3s ease !important;
-        box-shadow: 0 8px 24px rgba(0, 102, 255, 0.3) !important;
-        width: 100% !important;
-        text-transform: uppercase !important;
+        background: linear-gradient(135deg, #0066FF, #4285F4);
+        color: white;
+        border: none;
+        border-radius: 16px;
+        padding: 1.2rem 2.5rem;
+        font-weight: 800;
+        font-size: 1.2rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 8px 24px rgba(0,102,255,0.3);
+        width: 100%;
+        text-transform: uppercase;
     }
-
     .stButton > button:hover {
-        transform: translateY(-3px) !important;
-        box-shadow: 0 12px 32px rgba(0, 102, 255, 0.4) !important;
-        background: linear-gradient(135deg, #0052CC, #0066FF) !important;
+        transform: translateY(-3px);
+        box-shadow: 0 12px 32px rgba(0,102,255,0.4);
+        background: linear-gradient(135deg, #0052CC, #0066FF);
     }
-
     .time-reference {
-        background: linear-gradient(135deg, #FFF9C4, #FFF59D) !important;
-        border: 2px solid #FFD54F !important;
-        border-radius: 12px !important;
-        padding: 1.5rem !important;
-        margin: 1.5rem 0 !important;
-        font-size: 0.95rem !important;
-        color: #E65100 !important;
-        font-weight: 600 !important;
-        box-shadow: 0 4px 12px rgba(230, 81, 0, 0.1) !important;
-        line-height: 1.6 !important;
+        background: linear-gradient(135deg, #FFF9C4, #FFF59D);
+        border: 2px solid #FFD54F;
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin: 1.5rem 0;
+        font-size: 0.95rem;
+        color: #E65100;
+        font-weight: 600;
+        box-shadow: 0 4px 12px rgba(230,81,0,0.1);
+        line-height: 1.6;
     }
-
     .results-card {
         background: rgba(255, 255, 255, 0.95);
         backdrop-filter: blur(20px);
@@ -242,34 +279,30 @@ def add_custom_css():
         padding: 2.5rem;
         margin: 1.5rem 0;
         border: 2px solid rgba(0, 200, 81, 0.2);
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+        box-shadow: 0 10px 40px rgba(0,0,0,0.15);
         animation: fadeInUp 0.6s ease-out;
     }
-
     .price-display {
         text-align: center;
         padding: 2rem;
         background: linear-gradient(135deg, #00C851, #00E676);
         border-radius: 16px;
         margin-bottom: 2rem;
-        box-shadow: 0 8px 24px rgba(0, 200, 81, 0.3);
+        box-shadow: 0 8px 24px rgba(0,200,81,0.3);
     }
-
     .price-label {
         color: white;
         font-size: 1.1rem;
         font-weight: 600;
         margin-bottom: 0.5rem;
     }
-
     .price-amount {
         color: white;
         font-size: 3rem;
         font-weight: 900;
         margin: 0.5rem 0;
-        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        text-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
-
     .tips-title {
         font-size: 1.4rem;
         font-weight: 800;
@@ -281,43 +314,30 @@ def add_custom_css():
         padding-bottom: 0.5rem;
         border-bottom: 3px solid #FF6B35;
     }
-
     .tip-item {
         background: linear-gradient(135deg, #F8F9FA, #E9ECEF);
         padding: 1.2rem 1.5rem;
         margin: 1rem 0;
         border-radius: 12px;
         border-left: 4px solid #FF6B35;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
         font-weight: 600;
         color: #1A1A1A;
         transition: all 0.3s ease;
         font-size: 1rem;
     }
-
     .tip-item:hover {
         transform: translateX(4px);
-        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+        box-shadow: 0 6px 16px rgba(0,0,0,0.12);
         background: linear-gradient(135deg, #E9ECEF, #DEE2E6);
     }
-
-    .form-section {
-        margin-bottom: 2rem;
-    }
-
-    .stColumns > div {
-        padding: 0 0.75rem;
-    }
-
+    .form-section { margin-bottom: 2rem; }
+    .stColumns > div { padding: 0 0.75rem; }
     @keyframes fadeInUp {
         from { opacity: 0; transform: translateY(30px); }
         to { opacity: 1; transform: translateY(0); }
     }
-
-    .fade-in-up {
-        animation: fadeInUp 0.6s ease-out;
-    }
-
+    .fade-in-up { animation: fadeInUp 0.6s ease-out; }
     @media (max-width: 768px) {
         .app-title { font-size: 2.5rem; }
         .form-card { padding: 2rem; }
@@ -326,18 +346,16 @@ def add_custom_css():
     </style>
     """, unsafe_allow_html=True)
 
-# Configure page settings
+# Set page config and add CSS
 st.set_page_config(
     page_title="Flight Price Predictor ✈️",
     page_icon="✈️",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
-
-# Apply custom styles
 add_custom_css()
 
-
+# Header
 st.markdown('''
 <div class="app-header fade-in-up">
     <h1 class="app-title">✈️ Flight Price Predictor</h1>
@@ -345,40 +363,47 @@ st.markdown('''
 </div>
 ''', unsafe_allow_html=True)
 
+# Layout columns
 col1, col2 = st.columns([1, 1], gap="large")
 
 with col1:
-    st.markdown('''
-    <div class="form-card fade-in-up">
-        <div class="section-title">🗺️ Flight Route</div>
-    </div>
-    ''', unsafe_allow_html=True)
-    
+    st.markdown('<div class="form-card fade-in-up"><div class="section-title">🗺️ Flight Route</div></div>', unsafe_allow_html=True)
     route_col1, route_col2 = st.columns(2)
     with route_col1:
         source = st.selectbox("✈️ From", cities, key="source")
     with route_col2:
         available_destinations = [c for c in cities if c != source]
         destination = st.selectbox("🛬 To", available_destinations, key="destination")
-    
+
     cross_region = int(region_map[source] != region_map[destination])
     route_type = "Cross-region flight" if cross_region else "Same-region flight"
     st.markdown(f'<div class="info-box">📍 {route_type}</div>', unsafe_allow_html=True)
+
+    # Display flight route map showing all Indian cities
+    st.markdown('<div class="form-card fade-in-up"><div class="section-title">🗺️ Indian Cities Flight Map</div></div>', unsafe_allow_html=True)
+    flight_map = create_flight_map(source, destination)
+    st.pydeck_chart(flight_map, height=400)
     
+    # Add map legend
     st.markdown('''
-    <div class="form-card fade-in-up">
-        <div class="section-title">✈️ Flight Details</div>
+    <div class="info-box">
+        🗺️ <strong>Map Legend:</strong> 
+        🔴 Source City • 🟢 Destination City • ⚫ Other Cities • 💗 Flight Route
     </div>
     ''', unsafe_allow_html=True)
-    
+
+    st.markdown('<div class="form-card fade-in-up"><div class="section-title">✈️ Flight Details</div></div>', unsafe_allow_html=True)
     airline_col1, airline_col2 = st.columns(2)
     with airline_col1:
         airline = st.selectbox("🏢 Airline", airlines, key="airline")
     with airline_col2:
         stops = st.number_input("🔄 Number of Stops", min_value=0, max_value=5, value=0, key="stops")
-    
+
+    # Map stops count to label expected in historical data
     stop_map = {0: 'zero', 1: 'one', 2: 'two_or_more', 3: 'two_or_more', 4: 'two_or_more', 5: 'two_or_more'}
     stop_label = stop_map.get(stops, 'two_or_more')
+
+    # Suggest duration from historical data if possible
     matching_rows = historical_df[
         (historical_df['source_city'] == source) &
         (historical_df['destination_city'] == destination) &
@@ -386,127 +411,98 @@ with col1:
     ]
     suggested_duration = matching_rows['duration'].median() * 60 if not matching_rows.empty else 130
     suggested_duration = int(suggested_duration)
-    
+
+    # Manage session state for duration
     if "duration_mins" not in st.session_state:
         st.session_state.duration_mins = suggested_duration
     elif (st.session_state.get("last_stops") != stops or 
           st.session_state.get("last_src") != source or 
           st.session_state.get("last_dst") != destination):
         st.session_state.duration_mins = suggested_duration
-    
+
     st.session_state["last_stops"] = stops
     st.session_state["last_src"] = source
     st.session_state["last_dst"] = destination
 
 with col2:
-    st.markdown('''
-    <div class="form-card fade-in-up">
-        <div class="section-title">⏰ Schedule & Preferences</div>
-    </div>
-    ''', unsafe_allow_html=True)
-    
+    st.markdown('<div class="form-card fade-in-up"><div class="section-title">⏰ Schedule & Preferences</div></div>', unsafe_allow_html=True)
     with st.form("flight_prediction_form", clear_on_submit=False):
         time_col1, time_col2 = st.columns(2)
         with time_col1:
             departure = st.selectbox("🛫 Departure Time", departure_times, key="dep_time")
-            duration_mins = st.number_input("⏱️ Flight Duration (minutes)", 
-                                          min_value=30,
-                                          value=st.session_state.duration_mins, 
-                                          key="duration")
+            duration_mins = st.number_input("⏱️ Flight Duration (minutes)", min_value=30, value=st.session_state.duration_mins, key="duration")
         with time_col2:
             arrival = st.selectbox("🛬 Arrival Time", arrival_times, key="arr_time")
-            days_left = st.slider("📅 Days Until Departure", 
-                                min_value=0, max_value=60, value=7, key="days")
-        
+            days_left = st.slider("📅 Days Until Departure", min_value=0, max_value=60, value=7, key="days")
+
         if airline in ['Air_India', 'Vistara']:
             flight_class = st.selectbox("💺 Travel Class", classes, key="class")
         else:
             flight_class = 'Economy'
-            st.markdown('<div class="info-box">💺 Economy class (standard for this airline)</div>', 
-                       unsafe_allow_html=True)
-        
+            st.markdown('<div class="info-box">💺 Economy class (standard for this airline)</div>', unsafe_allow_html=True)
+
         st.markdown('''
         <div class="time-reference">
             <strong>⏰ Time Reference Guide:</strong><br>
             <strong>Early Morning:</strong> 4:00-8:00 AM • <strong>Morning:</strong> 8:00 AM-12:00 PM<br>
             <strong>Afternoon:</strong> 12:00-5:00 PM • <strong>Evening:</strong> 5:00-8:00 PM<br>
-            <strong>Night:</strong> 8:00-11:00 PM • <strong>Late Night:</strong> 11:00 PM-4:00 AM
+            <strong>Night:</strong> 8:00 PM-12:00 AM • <strong>Late Night:</strong> 12:00-4:00 AM
         </div>
         ''', unsafe_allow_html=True)
 
-        submitted = st.form_submit_button("🔮 Predict Flight Price")
+        predict_button = st.form_submit_button("🔮 Predict Flight Price")
 
-if submitted:
-    # Calculate features
-    red_eye = is_red_eye(departure, arrival)
-    is_peak_departure = int(departure in ['Morning', 'Early_Morning'])
-    days_duration_interaction = days_left * duration_mins
-    stops_per_hour = stops / (duration_mins / 60) if duration_mins > 0 else 0
-    booking_type = categorize_booking_type(days_left)
-    airline_tier = determine_airline_tier(airline)
-    duration_category = categorize_duration(duration_mins)
-    
-    features = {
-        'stops': stops,
-        'days_left': days_left,
-        'duration_mins': duration_mins,
-        'red_eye': red_eye,
-        'is_peak_departure': is_peak_departure,
-        'cross_region': cross_region,
-        'days_duration_interaction': days_duration_interaction,
-        'stops_per_hour': stops_per_hour
-    }
-    
-    features_full = {col: 0 for col in model_columns}
-    features_full.update(features)
-    
-    features_full[f'airline_{airline}'] = 1
-    features_full[f'source_city_{source}'] = 1
-    features_full[f'destination_city_{destination}'] = 1
-    features_full[f'departure_time_{departure}'] = 1
-    features_full[f'arrival_time_{arrival}'] = 1
-    features_full[f'class_{flight_class}'] = 1
-    features_full[f'airline_tier_{airline_tier}'] = 1
-    features_full[f'booking_type_{booking_type}'] = 1
-    features_full[f'duration_category_{duration_category}'] = 1
+        if predict_button:
+            # Calculate derived features
+            red_eye = is_red_eye(departure, arrival)
+            is_peak_departure = int(departure in ['Morning', 'Evening'])
+            days_duration_interaction = days_left * duration_mins
+            stops_per_hour = stops / (duration_mins / 60) if duration_mins > 0 else 0
+            booking_type = categorize_booking_type(days_left)
+            airline_tier = determine_airline_tier(airline)
+            duration_category = categorize_duration(duration_mins)
 
-    input_df = pd.DataFrame([features_full])
-    input_df = input_df.reindex(columns=model_columns, fill_value=0)
-    
-    # Store prediction and tips in session state
-    st.session_state.price = model.predict(input_df)[0]
-    st.session_state.tips = get_price_tips(features_full)
+            # Create feature vector
+            features = {col: 0 for col in model_columns}
+            
+            # Set basic features
+            features['stops'] = stops
+            features['days_left'] = days_left
+            features['duration_mins'] = duration_mins
+            features['red_eye'] = red_eye
+            features['is_peak_departure'] = is_peak_departure
+            features['cross_region'] = cross_region
+            features['days_duration_interaction'] = days_duration_interaction
+            features['stops_per_hour'] = stops_per_hour
 
-# If there's a price already stored, display it (works even after refresh)
-if "price" in st.session_state:
-    price = st.session_state.price
-    tips = st.session_state.tips
+            # Set categorical features
+            features[f'airline_{airline}'] = 1
+            features[f'source_city_{source}'] = 1
+            features[f'destination_city_{destination}'] = 1
+            features[f'departure_time_{departure}'] = 1
+            features[f'arrival_time_{arrival}'] = 1
+            features[f'class_{flight_class}'] = 1
+            features[f'airline_tier_{airline_tier}'] = 1
+            features[f'booking_type_{booking_type}'] = 1
+            features[f'duration_category_{duration_category}'] = 1
 
-    SGD_TO_INR_RATE = 61.5
-    price_in_inr = price * SGD_TO_INR_RATE
-    show_inr = st.checkbox("Show price in Indian Rupees (INR)")
+            # Make prediction
+            feature_vector = np.array([features[col] for col in model_columns]).reshape(1, -1)
+            predicted_price = model.predict(feature_vector)[0]
 
-    if show_inr:
-        st.markdown(f'''
-        <div class="results-card">
+            # Display results
+            st.markdown('<div class="results-card">', unsafe_allow_html=True)
+            st.markdown(f'''
             <div class="price-display">
-                <div class="price-label">🎉 Your Flight Price Prediction</div>
-                <div class="price-amount">₹ {price_in_inr:,.2f}</div>
-                <div style="color:white; font-size: 1rem; opacity: 0.8;">(SGD {price:,.2f})</div>
+                <div class="price-label">Predicted Flight Price</div>
+                <div class="price-amount">₹{predicted_price:,.0f}</div>
             </div>
-            <div class="tips-title">💡 Smart Money-Saving Tips</div>
-        </div>
-        ''', unsafe_allow_html=True)
-    else:
-        st.markdown(f'''
-        <div class="results-card">
-            <div class="price-display">
-                <div class="price-label">🎉 Your Flight Price Prediction</div>
-                <div class="price-amount">SGD {price:,.2f}</div>
-            </div>
-            <div class="tips-title">💡 Smart Money-Saving Tips</div>
-        </div>
-        ''', unsafe_allow_html=True)
+            ''', unsafe_allow_html=True)
 
-    for tip in tips:
-        st.markdown(f'<div class="tip-item">{tip}</div>', unsafe_allow_html=True)
+            # Price optimization tips
+            tips = get_price_tips(features)
+            st.markdown('<div class="tips-title">💡 Price Optimization Tips</div>', unsafe_allow_html=True)
+            for tip in tips:
+                st.markdown(f'<div class="tip-item">{tip}</div>', unsafe_allow_html=True)
+
+            st.markdown('</div>', unsafe_allow_html=True)
