@@ -2,12 +2,12 @@ import streamlit as st
 import pandas as pd
 import joblib
 import numpy as np
-
+ 
 # Load model and data
 model = joblib.load("model_DecisionTree.pkl")
 historical_df = pd.read_csv("Clean_Dataset.csv")
 historical_df.columns = historical_df.columns.str.strip()
-
+ 
 # Model columns
 model_columns = [
     'stops', 'days_left', 'duration_mins', 'red_eye', 'is_peak_departure', 'cross_region',
@@ -22,7 +22,7 @@ model_columns = [
     'booking_type_Advance', 'booking_type_Last_Minute', 'booking_type_Near',
     'duration_category_Long', 'duration_category_Medium'
 ]
-
+ 
 # Helper functions
 def categorize_booking_type(days_left):
     if days_left <= 3:
@@ -31,16 +31,16 @@ def categorize_booking_type(days_left):
         return 'Near'
     else:
         return 'Advance'
-
+ 
 def determine_airline_tier(airline):
     return 'High-Cost' if airline in ['Vistara', 'Air_India'] else 'Low-cost'
-
+ 
 def is_red_eye(departure_time, arrival_time):
     return int(departure_time in ['Late_Night', 'Night'] and arrival_time in ['Early_Morning', 'Morning'])
-
+ 
 def categorize_duration(duration_mins):
     return 'Medium' if duration_mins < 180 else 'Long'
-
+ 
 def get_price_tips(features):
     tips = []
     if features.get('class_Business', 0) == 1:
@@ -52,26 +52,26 @@ def get_price_tips(features):
     if not tips:
         tips.append("🎉 Your flight details look optimized for the best price!")
     return tips
-
+ 
 # Region mapping
 region_map = {
     'Delhi': 'North', 'Mumbai': 'West', 'Bangalore': 'South',
     'Kolkata': 'East', 'Hyderabad': 'South', 'Chennai': 'South'
 }
-
+ 
 # Data options
 airlines = ['AirAsia', 'Air_India', 'GO_FIRST', 'Indigo', 'SpiceJet', 'Vistara']
 cities = ['Bangalore', 'Chennai', 'Delhi', 'Hyderabad', 'Kolkata', 'Mumbai']
 departure_times = ['Afternoon', 'Early_Morning', 'Evening', 'Late_Night', 'Morning', 'Night']
 arrival_times = ['Afternoon', 'Early_Morning', 'Evening', 'Late_Night', 'Morning', 'Night']
 classes = ['Economy', 'Business']
-
+ 
 # Custom CSS
 def add_custom_css():
     st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-
+ 
     .stApp {
         background-image: url('https://cdn.dribbble.com/userupload/20522838/file/original-2783b0b7999528949d3a7e66870bfc72.gif');
         background-size: cover;
@@ -80,7 +80,7 @@ def add_custom_css():
         background-attachment: fixed;
         font-family: 'Inter', sans-serif;
     }
-
+ 
     .stApp::before {
         content: '';
         position: fixed;
@@ -92,13 +92,13 @@ def add_custom_css():
         z-index: -1;
         backdrop-filter: blur(3px);
     }
-
+ 
     .main .block-container {
         padding: 2rem 1rem;
         max-width: 1200px;
         margin: 0 auto;
     }
-
+ 
     .app-header {
         text-align: center;
         margin-bottom: 2rem;
@@ -109,7 +109,7 @@ def add_custom_css():
         border: 2px solid rgba(0, 102, 255, 0.1);
         box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
     }
-
+ 
     .app-title {
         font-size: 3.5rem;
         font-weight: 800;
@@ -121,7 +121,7 @@ def add_custom_css():
         letter-spacing: -2px;
         text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
-
+ 
     .app-subtitle {
         font-size: 1.3rem;
         color: #1A1A1A;
@@ -129,7 +129,7 @@ def add_custom_css():
         margin-top: 1rem;
         opacity: 0.8;
     }
-
+ 
     .form-card {
         background: rgba(255, 255, 255, 0.95);
         backdrop-filter: blur(20px);
@@ -140,13 +140,13 @@ def add_custom_css():
         box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
         transition: all 0.3s ease;
     }
-
+ 
     .form-card:hover {
         transform: translateY(-3px);
         box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
         border-color: rgba(0, 102, 255, 0.15);
     }
-
+ 
     .section-title {
         font-size: 1.4rem;
         font-weight: 800;
@@ -158,7 +158,7 @@ def add_custom_css():
         padding-bottom: 0.5rem;
         border-bottom: 3px solid #0066FF;
     }
-
+ 
     .stSelectbox > div > div,
     .stNumberInput > div > div > input {
         background: white !important;
@@ -167,13 +167,13 @@ def add_custom_css():
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
         font-weight: 600 !important;
     }
-
+ 
     .stSelectbox > div > div:hover {
         border-color: #0066FF !important;
         transform: translateY(-1px) !important;
         box-shadow: 0 6px 16px rgba(0, 102, 255, 0.15) !important;
     }
-
+ 
     .stSelectbox label,
     .stNumberInput label,
     .stSlider label {
@@ -181,16 +181,16 @@ def add_custom_css():
         color: #1A1A1A !important;
         font-size: 1rem !important;
     }
-
+ 
     .stNumberInput > div > div > input:focus {
         border-color: #0066FF !important;
         box-shadow: 0 0 0 4px rgba(0, 102, 255, 0.1) !important;
     }
-
+ 
     .stSlider > div > div > div > div {
         background: linear-gradient(90deg, #0066FF, #4285F4) !important;
     }
-
+ 
     .info-box {
         background: linear-gradient(135deg, #E8F4FD, #D6EFFF) !important;
         border: 2px solid #64B5F6 !important;
@@ -205,7 +205,7 @@ def add_custom_css():
         box-shadow: 0 4px 12px rgba(13, 71, 161, 0.1) !important;
         font-size: 1rem !important;
     }
-
+ 
     .stButton > button {
         background: linear-gradient(135deg, #0066FF, #4285F4) !important;
         color: white !important;
@@ -219,13 +219,13 @@ def add_custom_css():
         width: 100% !important;
         text-transform: uppercase !important;
     }
-
+ 
     .stButton > button:hover {
         transform: translateY(-3px) !important;
         box-shadow: 0 12px 32px rgba(0, 102, 255, 0.4) !important;
         background: linear-gradient(135deg, #0052CC, #0066FF) !important;
     }
-
+ 
     .time-reference {
         background: linear-gradient(135deg, #FFF9C4, #FFF59D) !important;
         border: 2px solid #FFD54F !important;
@@ -238,7 +238,7 @@ def add_custom_css():
         box-shadow: 0 4px 12px rgba(230, 81, 0, 0.1) !important;
         line-height: 1.6 !important;
     }
-
+ 
     .results-card {
         background: rgba(255, 255, 255, 0.95);
         backdrop-filter: blur(20px);
@@ -249,7 +249,7 @@ def add_custom_css():
         box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
         animation: fadeInUp 0.6s ease-out;
     }
-
+ 
     .price-display {
         text-align: center;
         padding: 2rem;
@@ -258,14 +258,14 @@ def add_custom_css():
         margin-bottom: 2rem;
         box-shadow: 0 8px 24px rgba(0, 200, 81, 0.3);
     }
-
+ 
     .price-label {
         color: white;
         font-size: 1.1rem;
         font-weight: 600;
         margin-bottom: 0.5rem;
     }
-
+ 
     .price-amount {
         color: white;
         font-size: 3rem;
@@ -273,7 +273,7 @@ def add_custom_css():
         margin: 0.5rem 0;
         text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
-
+ 
     .tips-title {
         font-size: 1.4rem;
         font-weight: 800;
@@ -285,7 +285,7 @@ def add_custom_css():
         padding-bottom: 0.5rem;
         border-bottom: 3px solid #FF6B35;
     }
-
+ 
     .tip-item {
         background: linear-gradient(135deg, #F8F9FA, #E9ECEF);
         padding: 1.2rem 1.5rem;
@@ -298,30 +298,30 @@ def add_custom_css():
         transition: all 0.3s ease;
         font-size: 1rem;
     }
-
+ 
     .tip-item:hover {
         transform: translateX(4px);
         box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
         background: linear-gradient(135deg, #E9ECEF, #DEE2E6);
     }
-
+ 
     .form-section {
         margin-bottom: 2rem;
     }
-
+ 
     .stColumns > div {
         padding: 0 0.75rem;
     }
-
+ 
     @keyframes fadeInUp {
         from { opacity: 0; transform: translateY(30px); }
         to { opacity: 1; transform: translateY(0); }
     }
-
+ 
     .fade-in-up {
         animation: fadeInUp 0.6s ease-out;
     }
-
+ 
     .error-box {
         background: linear-gradient(135deg, #FFEBEE, #FFCDD2) !important;
         border: 2px solid #F44336 !important;
@@ -336,7 +336,7 @@ def add_custom_css():
         box-shadow: 0 4px 12px rgba(183, 28, 28, 0.1) !important;
         font-size: 1rem !important;
     }
-
+ 
     @media (max-width: 768px) {
         .app-title { font-size: 2.5rem; }
         .form-card { padding: 2rem; }
@@ -344,7 +344,7 @@ def add_custom_css():
     }
     </style>
     """, unsafe_allow_html=True)
-
+ 
 # Configure page settings
 st.set_page_config(
     page_title="Flight Price Predictor ✈️",
@@ -352,10 +352,10 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed"
 )
-
+ 
 # Apply custom styles
 add_custom_css()
-
+ 
 # App header
 st.markdown('''
 <div class="app-header fade-in-up">
@@ -363,10 +363,10 @@ st.markdown('''
     <p class="app-subtitle">Get instant AI-powered flight price predictions with smart recommendations</p>
 </div>
 ''', unsafe_allow_html=True)
-
+ 
 # Main columns
 col1, col2 = st.columns([1, 1], gap="large")
-
+ 
 with col1:
     # Flight route section
     st.markdown('''
@@ -374,31 +374,31 @@ with col1:
         <div class="section-title">🗺️ Flight Route</div>
     </div>
     ''', unsafe_allow_html=True)
-    
+   
     route_col1, route_col2 = st.columns(2)
     with route_col1:
         source = st.selectbox("✈️ From", cities, key="source")
     with route_col2:
         available_destinations = [c for c in cities if c != source]
         destination = st.selectbox("🛬 To", available_destinations, key="destination")
-    
+   
     cross_region = int(region_map[source] != region_map[destination])
     route_type = "Cross-region flight" if cross_region else "Same-region flight"
     st.markdown(f'<div class="info-box">📍 {route_type}</div>', unsafe_allow_html=True)
-    
+   
     # Flight details section
     st.markdown('''
     <div class="form-card fade-in-up">
         <div class="section-title">✈️ Flight Details</div>
     </div>
     ''', unsafe_allow_html=True)
-    
+   
     airline_col1, airline_col2 = st.columns(2)
     with airline_col1:
         airline = st.selectbox("🏢 Airline", airlines, key="airline")
     with airline_col2:
         stops = st.selectbox("🔄 Number of Stops", options=[0, 1, 2, 3, 4, 5], index=0, key="stops")
-
+ 
     stop_map = {0: 'zero', 1: 'one', 2: 'two_or_more', 3: 'two_or_more', 4: 'two_or_more', 5: 'two_or_more'}
     stop_label = stop_map.get(stops, 'two_or_more')
     matching_rows = historical_df[
@@ -408,18 +408,18 @@ with col1:
     ]
     suggested_duration = matching_rows['duration'].median() * 60 if not matching_rows.empty else 130
     suggested_duration = int(suggested_duration)
-    
+   
     if "duration_mins" not in st.session_state:
         st.session_state.duration_mins = suggested_duration
-    elif (st.session_state.get("last_stops") != stops or 
-          st.session_state.get("last_src") != source or 
+    elif (st.session_state.get("last_stops") != stops or
+          st.session_state.get("last_src") != source or
           st.session_state.get("last_dst") != destination):
         st.session_state.duration_mins = suggested_duration
-    
+   
     st.session_state["last_stops"] = stops
     st.session_state["last_src"] = source
     st.session_state["last_dst"] = destination
-
+ 
 with col2:
     # Schedule & Preferences section
     st.markdown('''
@@ -427,27 +427,33 @@ with col2:
         <div class="section-title">⏰ Schedule & Preferences</div>
     </div>
     ''', unsafe_allow_html=True)
-    
+   
     with st.form("flight_prediction_form", clear_on_submit=False):
         time_col1, time_col2 = st.columns(2)
         with time_col1:
             departure = st.selectbox("🛫 Departure Time", departure_times, key="dep_time")
-            duration_mins = st.number_input("⏱️ Flight Duration (minutes)", 
-                                          min_value=1,
-                                          value=st.session_state.duration_mins, 
-                                          key="duration")
+           
+            # Convert suggested_duration (in mins) to hours and minutes
+            suggested_hours = st.session_state.duration_mins // 60
+            suggested_minutes = st.session_state.duration_mins % 60
+           
+            # Input for hours and minutes separately
+            duration_hours = st.number_input("⏱️ Flight Duration Hours", min_value=0, max_value=20, value=suggested_hours, key="duration_hours")
+            duration_minutes = st.number_input("⏱️ Flight Duration Minutes", min_value=0, max_value=59, value=suggested_minutes, key="duration_minutes")
+           
+            # Calculate total duration in minutes for backend/model
+            duration_mins = duration_hours * 60 + duration_minutes
+ 
         with time_col2:
             arrival = st.selectbox("🛬 Arrival Time", arrival_times, key="arr_time")
-            days_left = st.slider("📅 Days Until Departure", 
-                                min_value=0, max_value=60, value=7, key="days")
-        
+            days_left = st.slider("📅 Days Until Departure", min_value=0, max_value=60, value=7, key="days")
+ 
         if airline in ['Air_India', 'Vistara']:
             flight_class = st.selectbox("💺 Travel Class", classes, key="class")
         else:
             flight_class = 'Economy'
-            st.markdown('<div class="info-box">💺 Economy class (standard for this airline)</div>', 
-                       unsafe_allow_html=True)
-        
+            st.markdown('<div class="info-box">💺 Economy class (standard for this airline)</div>', unsafe_allow_html=True)
+ 
         st.markdown('''
         <div class="time-reference">
             <strong>⏰ Time Reference Guide:</strong><br>
@@ -456,18 +462,18 @@ with col2:
             <strong>Night:</strong> 8:00-11:00 PM • <strong>Late Night:</strong> 11:00 PM-4:00 AM
         </div>
         ''', unsafe_allow_html=True)
-
+ 
         submitted = st.form_submit_button("🔮 Predict Flight Price")
-
+ 
+ 
 # Handle form submission
 if submitted:
     if duration_mins <= 30:
         st.markdown('<div class="error-box">❌ Error: Flight duration must be more than 30 minutes. Commercial flights typically don\'t operate with such short durations.</div>', unsafe_allow_html=True)
-        # Clear any previous predictions
         if "price" in st.session_state:
             del st.session_state["price"]
     else:
-        # Calculate features
+        # Use duration_mins here for all calculations and model input
         red_eye = is_red_eye(departure, arrival)
         is_peak_departure = int(departure in ['Morning', 'Early_Morning'])
         days_duration_interaction = days_left * duration_mins
@@ -475,7 +481,7 @@ if submitted:
         booking_type = categorize_booking_type(days_left)
         airline_tier = determine_airline_tier(airline)
         duration_category = categorize_duration(duration_mins)
-        
+ 
         features = {
             'stops': stops,
             'days_left': days_left,
@@ -486,10 +492,10 @@ if submitted:
             'days_duration_interaction': days_duration_interaction,
             'stops_per_hour': stops_per_hour
         }
-        
+ 
         features_full = {col: 0 for col in model_columns}
         features_full.update(features)
-        
+ 
         features_full[f'airline_{airline}'] = 1
         features_full[f'source_city_{source}'] = 1
         features_full[f'destination_city_{destination}'] = 1
@@ -499,23 +505,23 @@ if submitted:
         features_full[f'airline_tier_{airline_tier}'] = 1
         features_full[f'booking_type_{booking_type}'] = 1
         features_full[f'duration_category_{duration_category}'] = 1
-
+ 
         input_df = pd.DataFrame([features_full])
         input_df = input_df.reindex(columns=model_columns, fill_value=0)
-        
-        # Store prediction and tips in session state
+ 
         st.session_state.price = model.predict(input_df)[0]
         st.session_state.tips = get_price_tips(features_full)
-
+ 
+ 
 # Display results if available and duration is valid
 if "price" in st.session_state and ("duration" not in st.session_state or st.session_state.duration > 30):
     price = st.session_state.price
     tips = st.session_state.tips
-
+ 
     SGD_TO_INR_RATE = 61.5
     price_in_inr = price * SGD_TO_INR_RATE
     show_inr = st.checkbox("Show price in Indian Rupees (INR)")
-
+ 
     if show_inr:
         st.markdown(f'''
         <div class="results-card">
@@ -537,6 +543,6 @@ if "price" in st.session_state and ("duration" not in st.session_state or st.ses
             <div class="tips-title">💡 Smart Money-Saving Tips</div>
         </div>
         ''', unsafe_allow_html=True)
-
+ 
     for tip in tips:
         st.markdown(f'<div class="tip-item">{tip}</div>', unsafe_allow_html=True)
