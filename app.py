@@ -435,7 +435,7 @@ with col2:
             suggested_minutes = st.session_state.duration_mins % 60
            
             # Input for hours and minutes separately
-            duration_hours = st.number_input("⏱️ Flight Duration Hours", min_value=0, max_value=20, value=suggested_hours, key="duration_hours")
+            duration_hours = st.number_input("⏱️ Flight Duration Hours", min_value=0, value=suggested_hours, key="duration_hours")
             duration_minutes = st.number_input("⏱️ Flight Duration Minutes", min_value=0, max_value=59, value=suggested_minutes, key="duration_minutes")
            
             # Calculate total duration in minutes for backend/model
