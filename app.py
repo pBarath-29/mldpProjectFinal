@@ -3,10 +3,12 @@ import pandas as pd
 import joblib
 import numpy as np
 
+# Load model and data
 model = joblib.load("model_DecisionTree.pkl")
 historical_df = pd.read_csv("Clean_Dataset.csv")
 historical_df.columns = historical_df.columns.str.strip()
 
+# Model columns
 model_columns = [
     'stops', 'days_left', 'duration_mins', 'red_eye', 'is_peak_departure', 'cross_region',
     'days_duration_interaction', 'stops_per_hour',
@@ -21,6 +23,7 @@ model_columns = [
     'duration_category_Long', 'duration_category_Medium'
 ]
 
+# Helper functions
 def categorize_booking_type(days_left):
     if days_left <= 3:
         return 'Last_Minute'
@@ -38,11 +41,6 @@ def is_red_eye(departure_time, arrival_time):
 def categorize_duration(duration_mins):
     return 'Medium' if duration_mins < 180 else 'Long'
 
-region_map = {
-    'Delhi': 'North', 'Mumbai': 'West', 'Bangalore': 'South',
-    'Kolkata': 'East', 'Hyderabad': 'South', 'Chennai': 'South'
-}
-
 def get_price_tips(features):
     tips = []
     if features.get('class_Business', 0) == 1:
@@ -55,14 +53,20 @@ def get_price_tips(features):
         tips.append("🎉 Your flight details look optimized for the best price!")
     return tips
 
+# Region mapping
+region_map = {
+    'Delhi': 'North', 'Mumbai': 'West', 'Bangalore': 'South',
+    'Kolkata': 'East', 'Hyderabad': 'South', 'Chennai': 'South'
+}
+
+# Data options
 airlines = ['AirAsia', 'Air_India', 'GO_FIRST', 'Indigo', 'SpiceJet', 'Vistara']
 cities = ['Bangalore', 'Chennai', 'Delhi', 'Hyderabad', 'Kolkata', 'Mumbai']
 departure_times = ['Afternoon', 'Early_Morning', 'Evening', 'Late_Night', 'Morning', 'Night']
 arrival_times = ['Afternoon', 'Early_Morning', 'Evening', 'Late_Night', 'Morning', 'Night']
 classes = ['Economy', 'Business']
 
-import streamlit as st
-
+# Custom CSS
 def add_custom_css():
     st.markdown("""
     <style>
@@ -318,6 +322,21 @@ def add_custom_css():
         animation: fadeInUp 0.6s ease-out;
     }
 
+    .error-box {
+        background: linear-gradient(135deg, #FFEBEE, #FFCDD2) !important;
+        border: 2px solid #F44336 !important;
+        border-radius: 12px !important;
+        padding: 1.5rem !important;
+        margin: 1.5rem 0 !important;
+        font-weight: 600 !important;
+        color: #B71C1C !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 0.75rem !important;
+        box-shadow: 0 4px 12px rgba(183, 28, 28, 0.1) !important;
+        font-size: 1rem !important;
+    }
+
     @media (max-width: 768px) {
         .app-title { font-size: 2.5rem; }
         .form-card { padding: 2rem; }
@@ -337,7 +356,7 @@ st.set_page_config(
 # Apply custom styles
 add_custom_css()
 
-
+# App header
 st.markdown('''
 <div class="app-header fade-in-up">
     <h1 class="app-title">✈️ Flight Price Predictor</h1>
@@ -345,9 +364,11 @@ st.markdown('''
 </div>
 ''', unsafe_allow_html=True)
 
+# Main columns
 col1, col2 = st.columns([1, 1], gap="large")
 
 with col1:
+    # Flight route section
     st.markdown('''
     <div class="form-card fade-in-up">
         <div class="section-title">🗺️ Flight Route</div>
@@ -365,6 +386,7 @@ with col1:
     route_type = "Cross-region flight" if cross_region else "Same-region flight"
     st.markdown(f'<div class="info-box">📍 {route_type}</div>', unsafe_allow_html=True)
     
+    # Flight details section
     st.markdown('''
     <div class="form-card fade-in-up">
         <div class="section-title">✈️ Flight Details</div>
@@ -375,8 +397,8 @@ with col1:
     with airline_col1:
         airline = st.selectbox("🏢 Airline", airlines, key="airline")
     with airline_col2:
-        stops = st.number_input("🔄 Number of Stops", min_value=0, max_value=5, value=0, key="stops")
-    
+        stops = st.selectbox("🔄 Number of Stops", options=[0, 1, 2, 3, 4, 5], index=0, key="stops")
+
     stop_map = {0: 'zero', 1: 'one', 2: 'two_or_more', 3: 'two_or_more', 4: 'two_or_more', 5: 'two_or_more'}
     stop_label = stop_map.get(stops, 'two_or_more')
     matching_rows = historical_df[
@@ -399,6 +421,7 @@ with col1:
     st.session_state["last_dst"] = destination
 
 with col2:
+    # Schedule & Preferences section
     st.markdown('''
     <div class="form-card fade-in-up">
         <div class="section-title">⏰ Schedule & Preferences</div>
@@ -410,7 +433,7 @@ with col2:
         with time_col1:
             departure = st.selectbox("🛫 Departure Time", departure_times, key="dep_time")
             duration_mins = st.number_input("⏱️ Flight Duration (minutes)", 
-                                          min_value=30,
+                                          min_value=1,
                                           value=st.session_state.duration_mins, 
                                           key="duration")
         with time_col2:
@@ -436,49 +459,56 @@ with col2:
 
         submitted = st.form_submit_button("🔮 Predict Flight Price")
 
+# Handle form submission
 if submitted:
-    # Calculate features
-    red_eye = is_red_eye(departure, arrival)
-    is_peak_departure = int(departure in ['Morning', 'Early_Morning'])
-    days_duration_interaction = days_left * duration_mins
-    stops_per_hour = stops / (duration_mins / 60) if duration_mins > 0 else 0
-    booking_type = categorize_booking_type(days_left)
-    airline_tier = determine_airline_tier(airline)
-    duration_category = categorize_duration(duration_mins)
-    
-    features = {
-        'stops': stops,
-        'days_left': days_left,
-        'duration_mins': duration_mins,
-        'red_eye': red_eye,
-        'is_peak_departure': is_peak_departure,
-        'cross_region': cross_region,
-        'days_duration_interaction': days_duration_interaction,
-        'stops_per_hour': stops_per_hour
-    }
-    
-    features_full = {col: 0 for col in model_columns}
-    features_full.update(features)
-    
-    features_full[f'airline_{airline}'] = 1
-    features_full[f'source_city_{source}'] = 1
-    features_full[f'destination_city_{destination}'] = 1
-    features_full[f'departure_time_{departure}'] = 1
-    features_full[f'arrival_time_{arrival}'] = 1
-    features_full[f'class_{flight_class}'] = 1
-    features_full[f'airline_tier_{airline_tier}'] = 1
-    features_full[f'booking_type_{booking_type}'] = 1
-    features_full[f'duration_category_{duration_category}'] = 1
+    if duration_mins <= 30:
+        st.markdown('<div class="error-box">❌ Error: Flight duration must be more than 30 minutes. Commercial flights typically don\'t operate with such short durations.</div>', unsafe_allow_html=True)
+        # Clear any previous predictions
+        if "price" in st.session_state:
+            del st.session_state["price"]
+    else:
+        # Calculate features
+        red_eye = is_red_eye(departure, arrival)
+        is_peak_departure = int(departure in ['Morning', 'Early_Morning'])
+        days_duration_interaction = days_left * duration_mins
+        stops_per_hour = stops / (duration_mins / 60) if duration_mins > 0 else 0
+        booking_type = categorize_booking_type(days_left)
+        airline_tier = determine_airline_tier(airline)
+        duration_category = categorize_duration(duration_mins)
+        
+        features = {
+            'stops': stops,
+            'days_left': days_left,
+            'duration_mins': duration_mins,
+            'red_eye': red_eye,
+            'is_peak_departure': is_peak_departure,
+            'cross_region': cross_region,
+            'days_duration_interaction': days_duration_interaction,
+            'stops_per_hour': stops_per_hour
+        }
+        
+        features_full = {col: 0 for col in model_columns}
+        features_full.update(features)
+        
+        features_full[f'airline_{airline}'] = 1
+        features_full[f'source_city_{source}'] = 1
+        features_full[f'destination_city_{destination}'] = 1
+        features_full[f'departure_time_{departure}'] = 1
+        features_full[f'arrival_time_{arrival}'] = 1
+        features_full[f'class_{flight_class}'] = 1
+        features_full[f'airline_tier_{airline_tier}'] = 1
+        features_full[f'booking_type_{booking_type}'] = 1
+        features_full[f'duration_category_{duration_category}'] = 1
 
-    input_df = pd.DataFrame([features_full])
-    input_df = input_df.reindex(columns=model_columns, fill_value=0)
-    
-    # Store prediction and tips in session state
-    st.session_state.price = model.predict(input_df)[0]
-    st.session_state.tips = get_price_tips(features_full)
+        input_df = pd.DataFrame([features_full])
+        input_df = input_df.reindex(columns=model_columns, fill_value=0)
+        
+        # Store prediction and tips in session state
+        st.session_state.price = model.predict(input_df)[0]
+        st.session_state.tips = get_price_tips(features_full)
 
-# If there's a price already stored, display it (works even after refresh)
-if "price" in st.session_state:
+# Display results if available and duration is valid
+if "price" in st.session_state and ("duration" not in st.session_state or st.session_state.duration > 30):
     price = st.session_state.price
     tips = st.session_state.tips
 
