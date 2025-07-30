@@ -66,7 +66,6 @@ departure_times = ['Afternoon', 'Early_Morning', 'Evening', 'Late_Night', 'Morni
 arrival_times = ['Afternoon', 'Early_Morning', 'Evening', 'Late_Night', 'Morning', 'Night']
 classes = ['Economy', 'Business']
  
-# Custom CSS
 def add_custom_css():
     st.markdown("""
     <style>
@@ -345,7 +344,6 @@ def add_custom_css():
     </style>
     """, unsafe_allow_html=True)
  
-# Configure page settings
 st.set_page_config(
     page_title="Flight Price Predictor ✈️",
     page_icon="✈️",
@@ -353,7 +351,6 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
  
-# Apply custom styles
 add_custom_css()
  
 # App header
@@ -473,7 +470,6 @@ if submitted:
         if "price" in st.session_state:
             del st.session_state["price"]
     else:
-        # Use duration_mins here for all calculations and model input
         red_eye = is_red_eye(departure, arrival)
         is_peak_departure = int(departure in ['Morning', 'Early_Morning'])
         days_duration_interaction = days_left * duration_mins
@@ -518,7 +514,7 @@ if "price" in st.session_state and ("duration" not in st.session_state or st.ses
     price = st.session_state.price
     tips = st.session_state.tips
  
-    SGD_TO_INR_RATE = 61.5
+    SGD_TO_INR_RATE = 60
     price_in_inr = price * SGD_TO_INR_RATE
     show_inr = st.checkbox("Show price in Indian Rupees (INR)")
  
